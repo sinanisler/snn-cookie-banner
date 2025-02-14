@@ -111,7 +111,7 @@ function snn_options_page() {
     }
     ?>
     <div class="wrap">
-        <h1>SNN Cookie Banner Plugin Settings</h1>
+        <h1>SNN Cookie Banner</h1>
         <!-- Admin CSS -->
         <style>
             .snn-textarea { width: 500px; }
@@ -120,7 +120,7 @@ function snn_options_page() {
             .snn-services-repeater .snn-service-item { margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; max-width:600px }
             .snn-custom-css-textarea { width: 500px; }
             /* Tabs styling */
-            .snn-tabs { margin-bottom: 20px; }
+            
             .snn-tab { cursor:pointer; display: inline-block; margin-right: 10px; padding: 8px 12px; border: 1px solid #ccc; border-bottom: none; background: #f1f1f1; }
             .snn-tab.active { background: #fff; font-weight: bold; }
             .snn-tab-content { border: 1px solid #ccc; padding: 15px; display: none; }
