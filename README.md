@@ -1,1 +1,3 @@
-### FUCK GDPR SNN Cookie Banner Plugin
+### FUCK GDPR 
+
+# SNN Cookie Banner Plugin
