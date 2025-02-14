@@ -1,12 +1,4 @@
 <?php
-/*
-Plugin Name: SNN Cookie Banner
-Requires PHP: 8.0
-Description: A plugin to manage cookie consent and dynamically block scripts (e.g. Google Analytics) until the user accepts cookies. Now includes support for Google Consent Mode v2 integration and per‑service script management with individual service toggles in preferences. Uses localStorage to save user preferences.
-Author: sinanisler.com
-Author URI: https://sinanisler.com/
-Version: 0.4
-*/
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
@@ -44,15 +36,16 @@ function snn_options_page() {
     if ( isset($_POST['snn_options_nonce']) && wp_verify_nonce( $_POST['snn_options_nonce'], 'snn_save_options' ) ) {
         $options = array();
         // ----- General Settings Tab -----
-        $options['banner_description'] = isset($_POST['banner_description']) ? sanitize_text_field( wp_unslash($_POST['banner_description']) ) : '';
-        $options['accept_button']      = isset($_POST['accept_button']) ? sanitize_text_field( wp_unslash($_POST['accept_button']) ) : '';
-        $options['deny_button']        = isset($_POST['deny_button']) ? sanitize_text_field( wp_unslash($_POST['deny_button']) ) : '';
-        $options['preferences_button'] = isset($_POST['preferences_button']) ? sanitize_text_field( wp_unslash($_POST['preferences_button']) ) : '';
-        $options['banner_position']    = isset($_POST['banner_position']) ? sanitize_text_field( wp_unslash($_POST['banner_position']) ) : '';
-        $options['banner_bg_color']    = isset($_POST['banner_bg_color']) ? sanitize_text_field( wp_unslash($_POST['banner_bg_color']) ) : '';
-        $options['banner_text_color']  = isset($_POST['banner_text_color']) ? sanitize_text_field( wp_unslash($_POST['banner_text_color']) ) : '';
-        $options['button_bg_color']    = isset($_POST['button_bg_color']) ? sanitize_text_field( wp_unslash($_POST['button_bg_color']) ) : '';
-        $options['button_text_color']  = isset($_POST['button_text_color']) ? sanitize_text_field( wp_unslash($_POST['button_text_color']) ) : '';
+        $options['enable_cookie_banner'] = isset($_POST['enable_cookie_banner']) ? 'yes' : 'no';
+        $options['banner_description']   = isset($_POST['banner_description']) ? sanitize_text_field( wp_unslash($_POST['banner_description']) ) : '';
+        $options['accept_button']        = isset($_POST['accept_button']) ? sanitize_text_field( wp_unslash($_POST['accept_button']) ) : '';
+        $options['deny_button']          = isset($_POST['deny_button']) ? sanitize_text_field( wp_unslash($_POST['deny_button']) ) : '';
+        $options['preferences_button']   = isset($_POST['preferences_button']) ? sanitize_text_field( wp_unslash($_POST['preferences_button']) ) : '';
+        $options['banner_position']      = isset($_POST['banner_position']) ? sanitize_text_field( wp_unslash($_POST['banner_position']) ) : '';
+        $options['banner_bg_color']      = isset($_POST['banner_bg_color']) ? sanitize_text_field( wp_unslash($_POST['banner_bg_color']) ) : '';
+        $options['banner_text_color']    = isset($_POST['banner_text_color']) ? sanitize_text_field( wp_unslash($_POST['banner_text_color']) ) : '';
+        $options['button_bg_color']      = isset($_POST['button_bg_color']) ? sanitize_text_field( wp_unslash($_POST['button_bg_color']) ) : '';
+        $options['button_text_color']    = isset($_POST['button_text_color']) ? sanitize_text_field( wp_unslash($_POST['button_text_color']) ) : '';
         
         // ----- Scripts & Services Tab -----
         $options['enable_consent_mode'] = isset($_POST['enable_consent_mode']) ? 'yes' : 'no';
@@ -68,6 +61,7 @@ function snn_options_page() {
                 // Save the script exactly as provided (unsanitized, unslashed)
                 $service_data['script'] = isset($service['script']) ? wp_unslash($service['script']) : '';
                 $service_data['position'] = isset($service['position']) ? sanitize_text_field( wp_unslash($service['position']) ) : 'body_bottom';
+                $service_data['mandatory'] = isset($service['mandatory']) ? 'yes' : 'no';
                 $services[] = $service_data;
             }
         }
@@ -84,20 +78,23 @@ function snn_options_page() {
     $options = get_option( SNN_OPTIONS );
     if ( !is_array($options) ) {
         $options = array(
+            'enable_cookie_banner' => 'no',
             'banner_description'   => 'This website uses cookies for analytics and functionality.',
             'accept_button'        => 'Accept',
             'deny_button'          => 'Deny',
             'preferences_button'   => 'Preferences',
             'services'             => array(
                 array(
-                    'name'     => 'Google Analytics',
-                    'script'   => '',
-                    'position' => 'head'
+                    'name'      => 'Google Analytics',
+                    'script'    => '',
+                    'position'  => 'head',
+                    'mandatory' => 'no'
                 ),
                 array(
-                    'name'     => 'Facebook Pixel',
-                    'script'   => '',
-                    'position' => 'head'
+                    'name'      => 'Facebook Pixel',
+                    'script'    => '',
+                    'position'  => 'head',
+                    'mandatory' => 'no'
                 )
             ),
             'custom_css'           => '',
@@ -120,7 +117,6 @@ function snn_options_page() {
             .snn-services-repeater .snn-service-item { margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; max-width:600px }
             .snn-custom-css-textarea { width: 500px; }
             /* Tabs styling */
-            
             .snn-tab { cursor:pointer; display: inline-block; margin-right: 10px; padding: 8px 12px; border: 1px solid #ccc; border-bottom: none; background: #f1f1f1; }
             .snn-tab.active { background: #fff; font-weight: bold; }
             .snn-tab-content { border: 1px solid #ccc; padding: 15px; display: none; }
@@ -140,6 +136,14 @@ function snn_options_page() {
             <!-- General Settings Tab Content -->
             <div id="general" class="snn-tab-content active">
                 <table class="form-table">
+                    <!-- New: Enable Cookie Banner -->
+                    <tr valign="top">
+                        <th scope="row">Enable Cookie Banner</th>
+                        <td>
+                            <input type="checkbox" name="enable_cookie_banner" value="yes" <?php checked((isset($options['enable_cookie_banner']) ? $options['enable_cookie_banner'] : 'no'), 'yes'); ?>>
+                            <span class="description">Check to enable the Cookie Banner on your site.</span>
+                        </td>
+                    </tr>
                     <tr valign="top">
                         <th scope="row">Cookie Banner Description</th>
                         <td>
@@ -233,6 +237,9 @@ function snn_options_page() {
                                                 <label><input type="radio" name="services[<?php echo $index; ?>][position]" value="body_top" <?php checked((isset($service['position']) ? $service['position'] : ''), 'body_top'); ?>> Body Top</label>
                                                 <label><input type="radio" name="services[<?php echo $index; ?>][position]" value="body_bottom" <?php checked((isset($service['position']) ? $service['position'] : ''), 'body_bottom'); ?>> Body Bottom</label>
                                             </div>
+                                            <label>
+                                                <input type="checkbox" name="services[<?php echo $index; ?>][mandatory]" value="yes" <?php checked((isset($service['mandatory']) ? $service['mandatory'] : 'no'), 'yes'); ?>> Mandatory Feature
+                                            </label>
                                             <button class="remove-service snn-remove-service button">Remove</button>
                                         </div>
                                         <?php
@@ -254,6 +261,9 @@ function snn_options_page() {
                                             <label><input type="radio" name="services[][position]" value="body_top"> Body Top</label>
                                             <label><input type="radio" name="services[][position]" value="body_bottom"> Body Bottom</label>
                                         </div>
+                                        <label>
+                                            <input type="checkbox" name="services[][mandatory]" value="yes"> Mandatory Feature
+                                        </label>
                                         <button class="remove-service snn-remove-service button">Remove</button>
                                     </div>
                                     <?php
@@ -279,7 +289,8 @@ function snn_options_page() {
                                                 '<label><input type="radio" name="services[][position]" value="body_top"> Body Top</label> ' +
                                                 '<label><input type="radio" name="services[][position]" value="body_bottom"> Body Bottom</label>' +
                                             '</div>' +
-                                            ' <button class="remove-service snn-remove-service button">Remove</button>' +
+                                            '<label><input type="checkbox" name="services[][mandatory]" value="yes"> Mandatory Feature</label>' +
+                                            '<button class="remove-service snn-remove-service button">Remove</button>' +
                                             '</div>';
                                         $('#services-repeater').append(newService);
                                     });
@@ -336,34 +347,16 @@ function snn_options_page() {
 
 /**
  * 1) Output the cookie banner.
- * Since localStorage is a client‑side storage, we output the banner and let JavaScript hide it if a preference is already saved.
+ *    The banner will only output if the admin has enabled it.
  */
 function snn_output_cookie_banner() {
     $options = get_option( SNN_OPTIONS );
     if ( ! $options ) {
-        $options = array(
-            'banner_description' => 'This website uses cookies for analytics and functionality.',
-            'accept_button'      => 'Accept',
-            'deny_button'        => 'Deny',
-            'preferences_button' => 'Preferences',
-            'services'           => array(
-                array(
-                    'name'     => 'Google Analytics',
-                    'script'   => '',
-                    'position' => 'head'
-                ),
-                array(
-                    'name'     => 'Facebook Pixel',
-                    'script'   => '',
-                    'position' => 'head'
-                )
-            ),
-            'banner_position'    => 'left',
-            'banner_bg_color'    => '#333333',
-            'banner_text_color'  => '#ffffff',
-            'button_bg_color'    => '#555555',
-            'button_text_color'  => '#ffffff'
-        );
+        return;
+    }
+    // If the cookie banner is not enabled, do not output it.
+    if ( empty($options['enable_cookie_banner']) || $options['enable_cookie_banner'] !== 'yes' ) {
+        return;
     }
     
     // Determine banner position class and output dynamic CSS
@@ -411,6 +404,7 @@ function snn_output_cookie_banner() {
     }
     .snn-preferences-title {
         margin-top: 0;
+        font-weight:600
     }
     /* Toggle switch style */
     .snn-switch {
@@ -473,20 +467,24 @@ function snn_output_cookie_banner() {
     </style>
     <div id="snn-cookie-banner" class="snn-cookie-banner <?php echo esc_attr($position); ?>">
         <div class="snn-preferences-content">
-            <h2 class="snn-preferences-title">Cookie Preferences</h2>
+            <div class="snn-preferences-title">Cookie Preferences</div>
             <?php if ( ! empty($options['services']) && is_array($options['services']) ) { ?>
                 <ul class="snn-services-list" style="list-style: none; padding: 0;">
                 <?php foreach ( $options['services'] as $index => $service ) { ?>
                     <li class="snn-service-item" style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
-                        <span class="snn-service-name"><?php echo esc_html( $service['name'] ); ?></span>
+                        <span class="snn-service-name">
+                            <?php echo esc_html( $service['name'] ); ?>
+                            <?php if ( isset($service['mandatory']) && $service['mandatory'] === 'yes' ) { ?>
+                                <span style="color:red; font-size:0.8em;">(Mandatory)</span>
+                            <?php } ?>
+                        </span>
                         <label class="snn-switch">
-                            <input type="checkbox" data-service-index="<?php echo esc_attr($index); ?>" class="snn-service-toggle" checked>
+                            <input type="checkbox" data-service-index="<?php echo esc_attr($index); ?>" class="snn-service-toggle" <?php echo (isset($service['mandatory']) && $service['mandatory'] === 'yes') ? 'checked disabled' : 'checked'; ?>>
                             <span class="snn-slider"></span>
                         </label>
                     </li>
                 <?php } ?>
                 </ul>
-                <button class="snn-button snn-save-preferences" style="margin-top:10px;">Save Preferences</button>
             <?php } ?>
         </div>
         <p class="snn-banner-text"><?php echo esc_html( isset($options['banner_description']) ? $options['banner_description'] : '' ); ?></p>
@@ -532,9 +530,26 @@ add_action('wp_footer', 'snn_output_service_scripts', 99);
  */
 function snn_output_banner_js() {
     $options = get_option(SNN_OPTIONS);
+    // Pass the banner-enabled flag to JS.
+    $cookie_banner_enabled = ( isset($options['enable_cookie_banner']) && $options['enable_cookie_banner'] === 'yes' ) ? 'true' : 'false';
     ?>
     <script>
     (function(){
+        // If the cookie banner is disabled in settings, inject all scripts immediately.
+        var cookieBannerEnabled = <?php echo $cookie_banner_enabled; ?>;
+        if (!cookieBannerEnabled) {
+            var hiddenDivs = document.querySelectorAll('.snn-service-script[data-script]');
+            hiddenDivs.forEach(function(div){
+                var encoded = div.getAttribute('data-script');
+                var position = div.getAttribute('data-position') || 'body_bottom';
+                if (encoded) {
+                    var decoded = atob(encoded);
+                    injectScript(decoded, position);
+                }
+            });
+            return;
+        }
+        
         // Google Consent Mode integration flag from settings
         var enableConsentMode = <?php echo ((isset($options['enable_consent_mode']) && $options['enable_consent_mode'] === 'yes') ? 'true' : 'false'); ?>;
         
@@ -618,11 +633,24 @@ function snn_output_banner_js() {
         
         if (acceptBtn) {
             acceptBtn.addEventListener('click', function(){
-                localStorage.setItem('snn_cookie_accepted', 'true');
-                localStorage.removeItem('snn_cookie_services');
+                var toggles = document.querySelectorAll('.snn-service-toggle');
+                if(toggles.length > 0) {
+                    var servicePrefs = {};
+                    toggles.forEach(function(toggle) {
+                        var index = toggle.getAttribute('data-service-index');
+                        servicePrefs[index] = toggle.checked;
+                    });
+                    localStorage.setItem('snn_cookie_services', JSON.stringify(servicePrefs));
+                    localStorage.setItem('snn_cookie_accepted', 'custom');
+                    updateGoogleConsent('granted');
+                    injectCustomConsentScripts();
+                } else {
+                    localStorage.setItem('snn_cookie_accepted', 'true');
+                    localStorage.removeItem('snn_cookie_services');
+                    updateGoogleConsent('granted');
+                    injectAllConsentScripts();
+                }
                 if(banner) { banner.style.display = 'none'; }
-                updateGoogleConsent('granted');
-                injectAllConsentScripts();
             });
         }
         if (denyBtn) {
@@ -638,38 +666,9 @@ function snn_output_banner_js() {
                 var prefsContent = document.querySelector('.snn-preferences-content');
                 if (prefsContent.style.display === 'none' || prefsContent.style.display === '') {
                     prefsContent.style.display = 'block';
-                    // Load existing custom preferences if available
-                    var prefs = localStorage.getItem('snn_cookie_services');
-                    if(prefs) {
-                        var servicePrefs = JSON.parse(prefs);
-                        document.querySelectorAll('.snn-service-toggle').forEach(function(toggle) {
-                            var index = toggle.getAttribute('data-service-index');
-                            if(servicePrefs.hasOwnProperty(index)) {
-                                toggle.checked = servicePrefs[index];
-                            }
-                        });
-                    }
                 } else {
                     prefsContent.style.display = 'none';
                 }
-            });
-        }
-        
-        // Save Preferences button event
-        var savePrefsBtn = document.querySelector('.snn-save-preferences');
-        if(savePrefsBtn) {
-            savePrefsBtn.addEventListener('click', function(){
-                var toggles = document.querySelectorAll('.snn-service-toggle');
-                var servicePrefs = {};
-                toggles.forEach(function(toggle){
-                    var index = toggle.getAttribute('data-service-index');
-                    servicePrefs[index] = toggle.checked;
-                });
-                localStorage.setItem('snn_cookie_services', JSON.stringify(servicePrefs));
-                localStorage.setItem('snn_cookie_accepted', 'custom');
-                if(banner) { banner.style.display = 'none'; }
-                updateGoogleConsent('granted');
-                injectCustomConsentScripts();
             });
         }
         
