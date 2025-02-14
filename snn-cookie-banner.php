@@ -1,8 +1,8 @@
 <?php
 /*
-Plugin Name: SNN Cookie Banner Plugin
-Description: A plugin to manage cookie consent and conditionally load scripts and custom CSS based on user consent.
-Version: 1.5
+Plugin Name: SNN Cookie Banner Plugin (Dynamic Block)
+Description: A plugin to manage cookie consent and dynamically block scripts (e.g. Google Analytics) until user accepts cookies.
+Version: 2.0
 Author: Your Name
 */
 
@@ -24,7 +24,7 @@ function snn_add_admin_menu() {
         'snn_cookie',                 // Menu slug
         'snn_options_page',           // Callback function
         'dashicons-shield',           // Icon
-        10000                       // Position (high value to push it down)
+        10000                         // Position (high value to push it down)
     );
 }
 add_action('admin_menu', 'snn_add_admin_menu');
@@ -55,12 +55,12 @@ function snn_options_page() {
         }
         $options['services'] = $services;
         
-        // Scripts: accept any HTML (no sanitization as per requirements)
+        // Scripts (no sanitization to preserve script tags)
         $options['script_head']        = $_POST['script_head'];
         $options['script_body_top']    = $_POST['script_body_top'];
         $options['script_body_bottom'] = $_POST['script_body_bottom'];
         
-        // Custom CSS for Cookie Banner (allow full CSS, no sanitization)
+        // Custom CSS (allow full CSS, no sanitization)
         $options['custom_css']         = $_POST['custom_css'];
         
         update_option( SNN_OPTIONS, $options );
@@ -90,7 +90,7 @@ function snn_options_page() {
     ?>
     <div class="wrap">
         <h1>SNN Cookie Banner Plugin Settings</h1>
-        <form method="post" action="">
+        <form method="post">
             <?php wp_nonce_field( 'snn_save_options', 'snn_options_nonce' ); ?>
             <table class="form-table">
                 <tr valign="top">
@@ -157,7 +157,7 @@ function snn_options_page() {
                     <td>
                         <div id="services-repeater">
                             <?php 
-                            if ( is_array($options['services']) && count($options['services']) > 0 ) {
+                            if ( ! empty($options['services']) && is_array($options['services']) ) {
                                 foreach ( $options['services'] as $service ) {
                                     ?>
                                     <div class="service-item" style="margin-bottom:5px;">
@@ -219,7 +219,7 @@ function snn_options_page() {
                         <p class="description">
                             Use the following CSS selectors to style the banner:<br>
                             <code>#snn-cookie-banner</code> - The cookie banner container<br>
-                            <code>#snn-preferences-content</code> - The preferences content overlay container
+                            <code>#snn-preferences-content</code> - The preferences content container inside the banner
                         </p>
                     </td>
                 </tr>
@@ -231,14 +231,19 @@ function snn_options_page() {
 }
 
 /* ============================================================================
-   FRONTEND COOKIE BANNER, CUSTOM CSS & SCRIPT OUTPUT
+   FRONTEND COOKIE BANNER, CUSTOM CSS & SCRIPT ENCODING
 ============================================================================ */
 
-// Output the cookie banner only if the user has not yet made a choice.
+/**
+ * 1) Show the cookie banner if the user hasn't made a choice yet
+ *    (i.e., no "snn_cookie_accepted" cookie is set)
+ */
 function snn_output_cookie_banner() {
     if ( isset( $_COOKIE['snn_cookie_accepted'] ) ) {
-        return; // User has already accepted or denied – do not show the banner.
+        // User has already accepted or denied – do not show the banner.
+        return;
     }
+
     $options = get_option( SNN_OPTIONS );
     if ( ! $options ) {
         $options = array(
@@ -257,18 +262,17 @@ function snn_output_cookie_banner() {
     
     // Determine banner position style
     $position = isset($options['banner_position']) ? $options['banner_position'] : 'left';
-    $banner_style = "position: fixed; bottom: 0; width: 500px; z-index: 9999; background: {$options['banner_bg_color']}; color: {$options['banner_text_color']}; padding: 15px; overflow: hidden; ";
-    if ($position == 'left') {
+    $banner_style = "position: fixed; bottom: 0; width: 500px; z-index: 9999; background: {$options['banner_bg_color']}; color: {$options['banner_text_color']}; padding: 15px;";
+    if ($position === 'left') {
         $banner_style .= " left: 0;";
-    } elseif ($position == 'middle') {
+    } elseif ($position === 'middle') {
         $banner_style .= " left: 50%; transform: translateX(-50%);";
-    } elseif ($position == 'right') {
+    } elseif ($position === 'right') {
         $banner_style .= " right: 0;";
     }
     ?>
     <div id="snn-cookie-banner" style="<?php echo esc_attr($banner_style); ?>">
-        <!-- Preferences overlay container (opens on top of inner content) -->
-        <div id="snn-preferences-content" style="display:none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: <?php echo esc_attr($options['banner_bg_color']); ?>; padding: 15px; z-index: 10;">
+        <div id="snn-preferences-content" style="display:none; margin-top: 15px; border-top: 1px solid #ccc; padding-top: 15px;">
             <h2 style="margin-top: 0;">Cookie Preferences</h2>
             <?php if ( isset($options['services']) && is_array($options['services']) ) { ?>
                 <ul>
@@ -279,19 +283,91 @@ function snn_output_cookie_banner() {
             <?php } ?>
             <button id="snn-close-preferences" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>;">Close Preferences</button>
         </div>
-        <!-- Main inner content of the banner -->
-        <div id="snn-banner-inner">
-            <p><?php echo esc_html( $options['banner_description'] ); ?></p>
-            <div id="snn-banner-buttons">
-                <button id="snn-accept" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>; margin-right: 10px;"><?php echo esc_html( $options['accept_button'] ); ?></button>
-                <button id="snn-deny" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>; margin-right: 10px;"><?php echo esc_html( $options['deny_button'] ); ?></button>
-                <button id="snn-preferences" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>;"><?php echo esc_html( $options['preferences_button'] ); ?></button>
-            </div>
+        <p><?php echo esc_html( $options['banner_description'] ); ?></p>
+        <div id="snn-banner-buttons">
+            <button id="snn-accept" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>; margin-right: 10px;">
+                <?php echo esc_html( $options['accept_button'] ); ?>
+            </button>
+            <button id="snn-deny" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>; margin-right: 10px;">
+                <?php echo esc_html( $options['deny_button'] ); ?>
+            </button>
+            <button id="snn-preferences" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>;">
+                <?php echo esc_html( $options['preferences_button'] ); ?>
+            </button>
         </div>
     </div>
+    <?php
+}
+add_action('wp_footer', 'snn_output_cookie_banner');
+
+/**
+ * 2) Always output the scripts as Base64-encoded data in hidden divs
+ *    - This ensures they are never directly loaded/preloaded by the browser
+ *    - We only decode & inject them if user has consented
+ */
+
+// a) Script in <head> (encoded)
+function snn_store_script_head() {
+    $options = get_option( SNN_OPTIONS );
+    if ( !empty($options['script_head']) ) {
+        ?>
+        <div 
+            id="snn-script-head" 
+            data-script="<?php echo esc_attr( base64_encode($options['script_head']) ); ?>" 
+            data-position="head" 
+            style="display: none;">
+        </div>
+        <?php
+    }
+}
+add_action('wp_head', 'snn_store_script_head', 9999);
+
+// b) Script in body (top)
+function snn_store_script_body_top() {
+    $options = get_option( SNN_OPTIONS );
+    if ( !empty($options['script_body_top']) ) {
+        ?>
+        <div 
+            id="snn-script-body-top" 
+            data-script="<?php echo esc_attr( base64_encode($options['script_body_top']) ); ?>" 
+            data-position="body_top" 
+            style="display: none;">
+        </div>
+        <?php
+    }
+}
+if ( function_exists('wp_body_open') ) {
+    add_action('wp_body_open', 'snn_store_script_body_top');
+} else {
+    // Fallback if wp_body_open not available
+    add_action('wp_head', 'snn_store_script_body_top', 0);
+}
+
+// c) Script in body (bottom)
+function snn_store_script_body_bottom() {
+    $options = get_option( SNN_OPTIONS );
+    if ( !empty($options['script_body_bottom']) ) {
+        ?>
+        <div 
+            id="snn-script-body-bottom" 
+            data-script="<?php echo esc_attr( base64_encode($options['script_body_bottom']) ); ?>" 
+            data-position="body_bottom" 
+            style="display: none;">
+        </div>
+        <?php
+    }
+}
+add_action('wp_footer', 'snn_store_script_body_bottom', 99);
+
+/**
+ * 3) Add JavaScript to:
+ *    - Set/Check cookies
+ *    - Dynamically inject scripts from the hidden divs (if consent is given)
+ */
+function snn_output_banner_js() {
+    ?>
     <script>
     (function(){
-        // Simple function to set a cookie
         function setCookie(name, value, days) {
             var expires = "";
             if (days) {
@@ -299,75 +375,123 @@ function snn_output_cookie_banner() {
                 date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
                 expires = "; expires=" + date.toUTCString();
             }
-            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+            document.cookie = name + "=" + (value || "") + expires + "; path=/";
         }
-        document.getElementById('snn-accept').addEventListener('click', function(){
-            setCookie('snn_cookie_accepted', 'true', 365);
-            document.getElementById('snn-cookie-banner').style.display = 'none';
-            location.reload();
-        });
-        document.getElementById('snn-deny').addEventListener('click', function(){
-            setCookie('snn_cookie_accepted', 'false', 365);
-            document.getElementById('snn-cookie-banner').style.display = 'none';
-        });
-        document.getElementById('snn-preferences').addEventListener('click', function(){
-            document.getElementById('snn-preferences-content').style.display = 'block';
-        });
-        document.getElementById('snn-close-preferences').addEventListener('click', function(){
-            document.getElementById('snn-preferences-content').style.display = 'none';
-        });
+
+        function getCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i].trim();
+                if (c.indexOf(nameEQ) === 0) {
+                    return c.substring(nameEQ.length, c.length);
+                }
+            }
+            return null;
+        }
+
+        // Dynamically inject script into <head> or <body> etc.
+        function injectScript(decodedCode, position) {
+            // Create a temporary container to parse any <script> tags
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = decodedCode;
+
+            // We look for <script> tags inside the decoded content
+            var scripts = tempDiv.querySelectorAll('script');
+            scripts.forEach(function(s){
+                var newScript = document.createElement('script');
+                
+                // Copy attributes
+                for (var i = 0; i < s.attributes.length; i++) {
+                    var attr = s.attributes[i];
+                    newScript.setAttribute(attr.name, attr.value);
+                }
+                
+                newScript.text = s.text || '';
+                // Decide where to place the script
+                if (position === 'head') {
+                    document.head.appendChild(newScript);
+                } else if (position === 'body_top') {
+                    // Insert right after body open
+                    var body = document.body;
+                    if (body.firstChild) {
+                        body.insertBefore(newScript, body.firstChild);
+                    } else {
+                        body.appendChild(newScript);
+                    }
+                } else {
+                    // For body_bottom or default, insert at the end of body
+                    document.body.appendChild(newScript);
+                }
+            });
+
+            // Also keep any non-script HTML (like noscript or other tags) 
+            // if you want them inserted. 
+            // For simplicity, we are only injecting the <script> tags, 
+            // but you could also insert other markup if needed.
+        }
+
+        function injectAllConsentScripts() {
+            // Find all divs with data-script
+            var hiddenDivs = document.querySelectorAll('[id^="snn-script-"][data-script]');
+            hiddenDivs.forEach(function(div){
+                var encoded = div.getAttribute('data-script');
+                var position = div.getAttribute('data-position') || 'body_bottom';
+                if (encoded) {
+                    var decoded = atob(encoded); // base64 decode
+                    injectScript(decoded, position);
+                }
+            });
+        }
+
+        // Event handlers for the banner
+        var acceptBtn = document.getElementById('snn-accept');
+        var denyBtn = document.getElementById('snn-deny');
+        var prefsBtn = document.getElementById('snn-preferences');
+        var closePrefsBtn = document.getElementById('snn-close-preferences');
+
+        if (acceptBtn) {
+            acceptBtn.addEventListener('click', function(){
+                setCookie('snn_cookie_accepted', 'true', 365);
+                document.getElementById('snn-cookie-banner').style.display = 'none';
+                // Inject scripts immediately
+                injectAllConsentScripts();
+            });
+        }
+        if (denyBtn) {
+            denyBtn.addEventListener('click', function(){
+                setCookie('snn_cookie_accepted', 'false', 365);
+                document.getElementById('snn-cookie-banner').style.display = 'none';
+            });
+        }
+        if (prefsBtn) {
+            prefsBtn.addEventListener('click', function(){
+                document.getElementById('snn-preferences-content').style.display = 'block';
+            });
+        }
+        if (closePrefsBtn) {
+            closePrefsBtn.addEventListener('click', function(){
+                document.getElementById('snn-preferences-content').style.display = 'none';
+            });
+        }
+
+        // If already accepted in a previous visit
+        if (getCookie('snn_cookie_accepted') === 'true') {
+            injectAllConsentScripts();
+        }
     })();
     </script>
     <?php
 }
-add_action('wp_footer', 'snn_output_cookie_banner');
+add_action('wp_footer', 'snn_output_banner_js', 100);
 
-// Output additional scripts if the user has accepted cookies
-
-// 1. Insert script into <head> (as the last item)
-function snn_output_script_head() {
-    if ( isset( $_COOKIE['snn_cookie_accepted'] ) && $_COOKIE['snn_cookie_accepted'] === 'true' ) {
-        $options = get_option( SNN_OPTIONS );
-        if ( ! empty( $options['script_head'] ) ) {
-            echo $options['script_head'];
-        }
-    }
-}
-add_action('wp_head', 'snn_output_script_head', 9999);
-
-// 2. Insert script at the top of <body>
-// Use wp_body_open if available (WordPress 5.2+), otherwise fallback
-function snn_output_script_body_top() {
-    if ( isset( $_COOKIE['snn_cookie_accepted'] ) && $_COOKIE['snn_cookie_accepted'] === 'true' ) {
-        $options = get_option( SNN_OPTIONS );
-        if ( ! empty( $options['script_body_top'] ) ) {
-            echo $options['script_body_top'];
-        }
-    }
-}
-if ( function_exists( 'wp_body_open' ) ) {
-    add_action('wp_body_open', 'snn_output_script_body_top');
-} else {
-    add_action('wp_head', 'snn_output_script_body_top', 0);
-}
-
-// 3. Insert script at the bottom of <body> (just before </body>)
-function snn_output_script_body_bottom() {
-    if ( isset( $_COOKIE['snn_cookie_accepted'] ) && $_COOKIE['snn_cookie_accepted'] === 'true' ) {
-        $options = get_option( SNN_OPTIONS );
-        if ( ! empty( $options['script_body_bottom'] ) ) {
-            echo $options['script_body_bottom'];
-        }
-    }
-}
-add_action('wp_footer', 'snn_output_script_body_bottom', 100);
-
-// Output custom CSS for the cookie banner on the frontend
+/**
+ * 4) Output custom CSS for the cookie banner
+ */
 function snn_output_custom_css() {
     $options = get_option( SNN_OPTIONS );
-    if ( isset($options['custom_css']) && ! empty( $options['custom_css'] ) ) {
+    if ( !empty($options['custom_css']) ) {
         echo "<style id='snn-custom-css'>" . $options['custom_css'] . "</style>";
     }
 }
 add_action('wp_head', 'snn_output_custom_css');
-?>
