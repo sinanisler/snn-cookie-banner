@@ -1,4 +1,12 @@
 <?php
+/*
+Plugin Name: SNN Cookie Banner
+Requires PHP: 8.0
+Description: A plugin to manage cookie consent and dynamically block scripts (e.g. Google Analytics) until the user accepts cookies. Now includes support for Google Consent Mode v2 integration.
+Author: sinanisler.com
+Author URI: https://sinanisler.com/
+Version: 0.3
+*/
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
@@ -108,7 +116,7 @@ function snn_options_page() {
     }
     ?>
     <div class="wrap">
-        <h1>SNN Cookie Banner</h1>
+        <h1>Cookie Banner</h1>
         <!-- Admin CSS -->
         <style>
             .snn-textarea { width: 500px; }
@@ -209,7 +217,7 @@ function snn_options_page() {
             <div id="scripts" class="snn-tab-content">
                 <!-- Added description for Scripts & Services -->
                 <p class="description">
-                    In this section you can manage third-party scripts and services that your website uses. Each service entry allows you to specify:
+                Use this tab to add or modify services to ensure they load according to user consent preferences.
                     <br>
                     - <strong>Service Name</strong>: The name of the service (e.g., Google Analytics).
                     <br>
@@ -219,7 +227,7 @@ function snn_options_page() {
                     <br>
                     - <strong>Mandatory Feature</strong>: If checked, this service will always be active and cannot be disabled by the user.
                     <br>
-                    Use this tab to add or modify services to ensure they load according to user consent preferences.
+                    
                 </p>
                 <table class="form-table">
                     <tr valign="top">
