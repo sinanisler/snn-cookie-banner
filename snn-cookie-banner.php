@@ -207,6 +207,20 @@ function snn_options_page() {
             </div>
             <!-- Scripts & Services Tab Content -->
             <div id="scripts" class="snn-tab-content">
+                <!-- Added description for Scripts & Services -->
+                <p class="description">
+                    In this section you can manage third-party scripts and services that your website uses. Each service entry allows you to specify:
+                    <br>
+                    - <strong>Service Name</strong>: The name of the service (e.g., Google Analytics).
+                    <br>
+                    - <strong>Script Code</strong>: The script or HTML code that will be executed when the user accepts cookies.
+                    <br>
+                    - <strong>Script Position</strong>: Where on the page the script should be inserted (Head, Body Top, or Body Bottom).
+                    <br>
+                    - <strong>Mandatory Feature</strong>: If checked, this service will always be active and cannot be disabled by the user.
+                    <br>
+                    Use this tab to add or modify services to ensure they load according to user consent preferences.
+                </p>
                 <table class="form-table">
                     <tr valign="top">
                         <th scope="row">Enable Google Consent Mode v2</th>
