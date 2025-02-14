@@ -442,10 +442,15 @@ function snn_output_cookie_banner() {
     .snn-switch input:checked + .snn-slider:before {
       transform: translateX(20px);
     }
+    /* Disabled (mandatory) switch styling */
+    .snn-switch input:disabled + .snn-slider {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
     /* Responsive Styles for small screens */
     @media (max-width: 768px) {
       .snn-cookie-banner {
-          width: 100%;
+          width: calc(100% - 20px);
           left: 0 !important;
           right: 0 !important;
           transform: none !important;
@@ -456,7 +461,7 @@ function snn_output_cookie_banner() {
           flex-direction: column;
       }
       .snn-banner-buttons .snn-button {
-          margin-bottom: 10px;
+          margin-top:8px;
           width: 100%;
           text-align: center;
       }
@@ -475,7 +480,7 @@ function snn_output_cookie_banner() {
                         <span class="snn-service-name">
                             <?php echo esc_html( $service['name'] ); ?>
                             <?php if ( isset($service['mandatory']) && $service['mandatory'] === 'yes' ) { ?>
-                                <span style="color:red; font-size:0.8em;">(Mandatory)</span>
+                                <span style="color:black; font-weight:bold">*</span>
                             <?php } ?>
                         </span>
                         <label class="snn-switch">
