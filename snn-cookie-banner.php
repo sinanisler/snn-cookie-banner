@@ -8,7 +8,6 @@ Author URI: https://sinanisler.com/
 Version: 0.3
 */
 
-
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 // Define option key constant
@@ -34,22 +33,26 @@ add_action('admin_menu', 'snn_add_admin_menu');
 
 // Render the settings page with two tabs: General and Scripts & Services
 function snn_options_page() {
+    // Security: Ensure the current user has proper capability
+    if ( ! current_user_can('manage_options') ) {
+        wp_die(__('You do not have sufficient permissions to access this page.', 'snn-cookie-banner'));
+    }
+    
     // Handle form submission
     if ( isset($_POST['snn_options_nonce']) && wp_verify_nonce( $_POST['snn_options_nonce'], 'snn_save_options' ) ) {
         $options = array();
         // ----- General Settings Tab -----
-        $options['banner_description'] = sanitize_text_field( $_POST['banner_description'] );
-        $options['accept_button']      = sanitize_text_field( $_POST['accept_button'] );
-        $options['deny_button']        = sanitize_text_field( $_POST['deny_button'] );
-        $options['preferences_button'] = sanitize_text_field( $_POST['preferences_button'] );
-        $options['banner_position']    = sanitize_text_field( $_POST['banner_position'] );
-        $options['banner_bg_color']    = sanitize_text_field( $_POST['banner_bg_color'] );
-        $options['banner_text_color']  = sanitize_text_field( $_POST['banner_text_color'] );
-        $options['button_bg_color']    = sanitize_text_field( $_POST['button_bg_color'] );
-        $options['button_text_color']  = sanitize_text_field( $_POST['button_text_color'] );
+        $options['banner_description'] = isset($_POST['banner_description']) ? sanitize_text_field( $_POST['banner_description'] ) : '';
+        $options['accept_button']      = isset($_POST['accept_button']) ? sanitize_text_field( $_POST['accept_button'] ) : '';
+        $options['deny_button']        = isset($_POST['deny_button']) ? sanitize_text_field( $_POST['deny_button'] ) : '';
+        $options['preferences_button'] = isset($_POST['preferences_button']) ? sanitize_text_field( $_POST['preferences_button'] ) : '';
+        $options['banner_position']    = isset($_POST['banner_position']) ? sanitize_text_field( $_POST['banner_position'] ) : '';
+        $options['banner_bg_color']    = isset($_POST['banner_bg_color']) ? sanitize_text_field( $_POST['banner_bg_color'] ) : '';
+        $options['banner_text_color']  = isset($_POST['banner_text_color']) ? sanitize_text_field( $_POST['banner_text_color'] ) : '';
+        $options['button_bg_color']    = isset($_POST['button_bg_color']) ? sanitize_text_field( $_POST['button_bg_color'] ) : '';
+        $options['button_text_color']  = isset($_POST['button_text_color']) ? sanitize_text_field( $_POST['button_text_color'] ) : '';
         
         // ----- Scripts & Services Tab -----
-        // Consent Mode checkbox moved to this tab.
         $options['enable_consent_mode'] = isset($_POST['enable_consent_mode']) ? 'yes' : 'no';
         
         $services = array();
@@ -59,10 +62,10 @@ function snn_options_page() {
             }
         }
         $options['services']           = $services;
-        $options['script_head']        = $_POST['script_head'];         // Allow HTML
-        $options['script_body_top']    = $_POST['script_body_top'];       // Allow HTML
-        $options['script_body_bottom'] = $_POST['script_body_bottom'];    // Allow HTML
-        $options['custom_css']         = $_POST['custom_css'];            // Allow full CSS
+        $options['script_head']        = isset($_POST['script_head']) ? $_POST['script_head'] : '';         // Allow HTML
+        $options['script_body_top']    = isset($_POST['script_body_top']) ? $_POST['script_body_top'] : '';       // Allow HTML
+        $options['script_body_bottom'] = isset($_POST['script_body_bottom']) ? $_POST['script_body_bottom'] : '';    // Allow HTML
+        $options['custom_css']         = isset($_POST['custom_css']) ? $_POST['custom_css'] : '';            // Allow full CSS
         
         update_option( SNN_OPTIONS, $options );
         echo '<div class="updated"><p>Settings saved.</p></div>';
@@ -119,34 +122,34 @@ function snn_options_page() {
                     <tr valign="top">
                         <th scope="row">Cookie Banner Description</th>
                         <td>
-                            <textarea name="banner_description" rows="3" class="snn-textarea snn-banner-description"><?php echo esc_textarea( $options['banner_description'] ); ?></textarea>
+                            <textarea name="banner_description" rows="3" class="snn-textarea snn-banner-description"><?php echo esc_textarea( $options['banner_description'] ?? '' ); ?></textarea>
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Accept Button Text</th>
                         <td>
-                            <input type="text" name="accept_button" value="<?php echo esc_attr( $options['accept_button'] ); ?>" class="snn-input snn-accept-button">
+                            <input type="text" name="accept_button" value="<?php echo esc_attr( $options['accept_button'] ?? '' ); ?>" class="snn-input snn-accept-button">
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Deny Button Text</th>
                         <td>
-                            <input type="text" name="deny_button" value="<?php echo esc_attr( $options['deny_button'] ); ?>" class="snn-input snn-deny-button">
+                            <input type="text" name="deny_button" value="<?php echo esc_attr( $options['deny_button'] ?? '' ); ?>" class="snn-input snn-deny-button">
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Preferences Button Text</th>
                         <td>
-                            <input type="text" name="preferences_button" value="<?php echo esc_attr( $options['preferences_button'] ); ?>" class="snn-input snn-preferences-button">
+                            <input type="text" name="preferences_button" value="<?php echo esc_attr( $options['preferences_button'] ?? '' ); ?>" class="snn-input snn-preferences-button">
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Cookie Banner Position</th>
                         <td>
                             <select name="banner_position" class="snn-select snn-banner-position">
-                                <option value="left" <?php selected($options['banner_position'], 'left'); ?>>Left</option>
-                                <option value="middle" <?php selected($options['banner_position'], 'middle'); ?>>Middle</option>
-                                <option value="right" <?php selected($options['banner_position'], 'right'); ?>>Right</option>
+                                <option value="left" <?php selected(($options['banner_position'] ?? ''), 'left'); ?>>Left</option>
+                                <option value="middle" <?php selected(($options['banner_position'] ?? ''), 'middle'); ?>>Middle</option>
+                                <option value="right" <?php selected(($options['banner_position'] ?? ''), 'right'); ?>>Right</option>
                             </select>
                             <p class="description">Select the horizontal position of the cookie banner on your website.</p>
                         </td>
@@ -154,25 +157,25 @@ function snn_options_page() {
                     <tr valign="top">
                         <th scope="row">Cookie Banner Background Color</th>
                         <td>
-                            <input type="color" name="banner_bg_color" value="<?php echo esc_attr($options['banner_bg_color']); ?>" class="snn-color-picker">
+                            <input type="color" name="banner_bg_color" value="<?php echo esc_attr($options['banner_bg_color'] ?? ''); ?>" class="snn-color-picker">
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Cookie Banner Text Color</th>
                         <td>
-                            <input type="color" name="banner_text_color" value="<?php echo esc_attr($options['banner_text_color']); ?>" class="snn-color-picker">
+                            <input type="color" name="banner_text_color" value="<?php echo esc_attr($options['banner_text_color'] ?? ''); ?>" class="snn-color-picker">
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Button Background Color</th>
                         <td>
-                            <input type="color" name="button_bg_color" value="<?php echo esc_attr($options['button_bg_color']); ?>" class="snn-color-picker">
+                            <input type="color" name="button_bg_color" value="<?php echo esc_attr($options['button_bg_color'] ?? ''); ?>" class="snn-color-picker">
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Button Text Color</th>
                         <td>
-                            <input type="color" name="button_text_color" value="<?php echo esc_attr($options['button_text_color']); ?>" class="snn-color-picker">
+                            <input type="color" name="button_text_color" value="<?php echo esc_attr($options['button_text_color'] ?? ''); ?>" class="snn-color-picker">
                         </td>
                     </tr>
                 </table>
@@ -233,25 +236,25 @@ function snn_options_page() {
                     <tr valign="top">
                         <th scope="row">Script in Head (last item)</th>
                         <td>
-                            <textarea name="script_head" rows="5" class="snn-textarea snn-script-textarea"><?php echo esc_textarea( $options['script_head'] ); ?></textarea>
+                            <textarea name="script_head" rows="5" class="snn-textarea snn-script-textarea"><?php echo esc_textarea( $options['script_head'] ?? '' ); ?></textarea>
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Script in Body (top)</th>
                         <td>
-                            <textarea name="script_body_top" rows="5" class="snn-textarea snn-script-textarea"><?php echo esc_textarea( $options['script_body_top'] ); ?></textarea>
+                            <textarea name="script_body_top" rows="5" class="snn-textarea snn-script-textarea"><?php echo esc_textarea( $options['script_body_top'] ?? '' ); ?></textarea>
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Script in Body (bottom)</th>
                         <td>
-                            <textarea name="script_body_bottom" rows="5" class="snn-textarea snn-script-textarea"><?php echo esc_textarea( $options['script_body_bottom'] ); ?></textarea>
+                            <textarea name="script_body_bottom" rows="5" class="snn-textarea snn-script-textarea"><?php echo esc_textarea( $options['script_body_bottom'] ?? '' ); ?></textarea>
                         </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Custom CSS for Cookie Banner</th>
                         <td>
-                            <textarea name="custom_css" rows="5" class="snn-textarea snn-custom-css-textarea"><?php echo isset($options['custom_css']) ? esc_textarea($options['custom_css']) : ''; ?></textarea>
+                            <textarea name="custom_css" rows="5" class="snn-textarea snn-custom-css-textarea"><?php echo esc_textarea( $options['custom_css'] ?? '' ); ?></textarea>
                             <p class="description">
                                 Use the following CSS selectors to style the banner:<br>
                                 <code>.snn-cookie-banner</code> - The cookie banner container<br>
@@ -310,23 +313,26 @@ function snn_output_cookie_banner() {
             'banner_position'    => 'left',
             'banner_bg_color'    => '#333333',
             'banner_text_color'  => '#ffffff',
-            'button_bg_color'    => '#555555',
+            'button_bg_color'    => '#000000',
             'button_text_color'  => '#ffffff'
         );
     }
     
     // Determine banner position class and output dynamic CSS
-    $position = isset($options['banner_position']) ? $options['banner_position'] : 'left';
+    $position = $options['banner_position'] ?? 'left';
     ?>
     <style id="snn-dynamic-styles">
     .snn-cookie-banner {
        position: fixed;
-       bottom: 0;
+       bottom: 10px;
        width: 500px;
        z-index: 9999;
        padding: 15px;
-       background: <?php echo esc_attr($options['banner_bg_color']); ?>;
-       color: <?php echo esc_attr($options['banner_text_color']); ?>;
+       background: <?php echo esc_attr($options['banner_bg_color'] ?? '#333333'); ?>;
+       color: <?php echo esc_attr($options['banner_text_color'] ?? '#ffffff'); ?>;
+       box-shadow:0px 0px 10px #00000055;
+       border-radius:10px;
+       margin:10px
     }
     .snn-cookie-banner.left { left: 0; }
     .snn-cookie-banner.middle { left: 50%; transform: translateX(-50%); }
@@ -334,23 +340,52 @@ function snn_output_cookie_banner() {
     
     .snn-preferences-content {
         display: none;
-        margin-top: 15px;
-        border-top: 1px solid #ccc;
-        padding-top: 15px;
+        padding-top: 10px;
+    }
+    .snn-banner-buttons {
+        display: flex;
+        flex-direction: row;
     }
     .snn-banner-buttons .snn-button {
         margin-right: 10px;
-        background: <?php echo esc_attr($options['button_bg_color']); ?>;
-        color: <?php echo esc_attr($options['button_text_color']); ?>;
+        background: <?php echo esc_attr($options['button_bg_color'] ?? '#555555'); ?>;
+        color: <?php echo esc_attr($options['button_text_color'] ?? '#ffffff'); ?>;
         border: none;
-        padding: 8px 12px;
+        padding: 10px;
         cursor: pointer;
+        margin-top:10px;
+        border-radius:5px;
+        
+    width: 100%;
+    text-align: center;
     }
     .snn-banner-buttons .snn-button:last-child {
        margin-right: 0;
     }
     .snn-preferences-title {
         margin-top: 0;
+    }
+    /* Responsive Styles for small screens */
+    @media (max-width: 768px) {
+      .snn-cookie-banner {
+          width: 100%;
+          left: 0 !important;
+          right: 0 !important;
+          transform: none !important;
+          padding: 10px;
+      }
+      .snn-banner-buttons {
+          display: flex;
+          flex-direction: column;
+      }
+      .snn-banner-buttons .snn-button {
+          margin-bottom: 10px;
+          width: 100%;
+          text-align: center;
+      }
+      .snn-banner-buttons .snn-button:last-child {
+          margin-bottom: 0;
+      }
     }
     </style>
     <div id="snn-cookie-banner" class="snn-cookie-banner <?php echo esc_attr($position); ?>">
@@ -364,11 +399,11 @@ function snn_output_cookie_banner() {
                 </ul>
             <?php } ?>
         </div>
-        <p class="snn-banner-text"><?php echo esc_html( $options['banner_description'] ); ?></p>
+        <p class="snn-banner-text"><?php echo esc_html( $options['banner_description'] ?? '' ); ?></p>
         <div class="snn-banner-buttons">
-            <button class="snn-button snn-accept"><?php echo esc_html( $options['accept_button'] ); ?></button>
-            <button class="snn-button snn-deny"><?php echo esc_html( $options['deny_button'] ); ?></button>
-            <button class="snn-button snn-preferences"><?php echo esc_html( $options['preferences_button'] ); ?></button>
+            <button class="snn-button snn-accept"><?php echo esc_html( $options['accept_button'] ?? 'Accept' ); ?></button>
+            <button class="snn-button snn-deny"><?php echo esc_html( $options['deny_button'] ?? 'Deny' ); ?></button>
+            <button class="snn-button snn-preferences"><?php echo esc_html( $options['preferences_button'] ?? 'Preferences' ); ?></button>
         </div>
     </div>
     <?php
@@ -463,7 +498,7 @@ function snn_output_banner_js() {
                 date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
                 expires = "; expires=" + date.toUTCString();
             }
-            document.cookie = name + "=" + (value || "") + expires + "; path=/";
+            document.cookie = name + "=" + (value || "") + expires + "; path=/; Secure; SameSite=Lax";
         }
 
         function getCookie(name) {
