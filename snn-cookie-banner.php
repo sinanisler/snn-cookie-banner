@@ -2,7 +2,7 @@
 /*
 Plugin Name: SNN Cookie Banner Plugin
 Description: A plugin to manage cookie consent and conditionally load scripts and custom CSS based on user consent.
-Version: 1.3
+Version: 1.5
 Author: Your Name
 */
 
@@ -219,7 +219,7 @@ function snn_options_page() {
                         <p class="description">
                             Use the following CSS selectors to style the banner:<br>
                             <code>#snn-cookie-banner</code> - The cookie banner container<br>
-                            <code>#snn-preferences-content</code> - The preferences content container inside the banner
+                            <code>#snn-preferences-content</code> - The preferences content overlay container
                         </p>
                     </td>
                 </tr>
@@ -257,7 +257,7 @@ function snn_output_cookie_banner() {
     
     // Determine banner position style
     $position = isset($options['banner_position']) ? $options['banner_position'] : 'left';
-    $banner_style = "position: fixed; bottom: 0; width: 500px; z-index: 9999; background: {$options['banner_bg_color']}; color: {$options['banner_text_color']}; padding: 15px;";
+    $banner_style = "position: fixed; bottom: 0; width: 500px; z-index: 9999; background: {$options['banner_bg_color']}; color: {$options['banner_text_color']}; padding: 15px; overflow: hidden; ";
     if ($position == 'left') {
         $banner_style .= " left: 0;";
     } elseif ($position == 'middle') {
@@ -267,13 +267,8 @@ function snn_output_cookie_banner() {
     }
     ?>
     <div id="snn-cookie-banner" style="<?php echo esc_attr($banner_style); ?>">
-        <p><?php echo esc_html( $options['banner_description'] ); ?></p>
-        <div id="snn-banner-buttons">
-            <button id="snn-accept" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>; margin-right: 10px;"><?php echo esc_html( $options['accept_button'] ); ?></button>
-            <button id="snn-deny" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>; margin-right: 10px;"><?php echo esc_html( $options['deny_button'] ); ?></button>
-            <button id="snn-preferences" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>;"><?php echo esc_html( $options['preferences_button'] ); ?></button>
-        </div>
-        <div id="snn-preferences-content" style="display:none; margin-top: 15px; border-top: 1px solid #ccc; padding-top: 15px;">
+        <!-- Preferences overlay container (opens on top of inner content) -->
+        <div id="snn-preferences-content" style="display:none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: <?php echo esc_attr($options['banner_bg_color']); ?>; padding: 15px; z-index: 10;">
             <h2 style="margin-top: 0;">Cookie Preferences</h2>
             <?php if ( isset($options['services']) && is_array($options['services']) ) { ?>
                 <ul>
@@ -283,6 +278,15 @@ function snn_output_cookie_banner() {
                 </ul>
             <?php } ?>
             <button id="snn-close-preferences" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>;">Close Preferences</button>
+        </div>
+        <!-- Main inner content of the banner -->
+        <div id="snn-banner-inner">
+            <p><?php echo esc_html( $options['banner_description'] ); ?></p>
+            <div id="snn-banner-buttons">
+                <button id="snn-accept" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>; margin-right: 10px;"><?php echo esc_html( $options['accept_button'] ); ?></button>
+                <button id="snn-deny" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>; margin-right: 10px;"><?php echo esc_html( $options['deny_button'] ); ?></button>
+                <button id="snn-preferences" style="background: <?php echo esc_attr($options['button_bg_color']); ?>; color: <?php echo esc_attr($options['button_text_color']); ?>;"><?php echo esc_html( $options['preferences_button'] ); ?></button>
+            </div>
         </div>
     </div>
     <script>
