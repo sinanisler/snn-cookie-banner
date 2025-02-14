@@ -2,13 +2,15 @@
 /*
 Plugin Name: SNN Cookie Banner
 Requires PHP: 8.0
-Description: A plugin to manage cookie consent and dynamically block scripts (e.g. Google Analytics) until the user accepts cookies. Now includes support for Google Consent Mode v2 integration.
+Description: A plugin to manage cookie consent and dynamically block scripts (e.g. Google Analytics) until the user accepts cookies. Now includes support for Google Consent Mode v2 integration and per‑service script management.
 Author: sinanisler.com
 Author URI: https://sinanisler.com/
-Version: 0.3
+Version: 0.4
 */
 
-if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // Exit if accessed directly
+}
 
 // Define option key constant
 define('SNN_OPTIONS', 'snn_cookie_options');
@@ -58,14 +60,21 @@ function snn_options_page() {
         $services = array();
         if ( isset($_POST['services']) && is_array($_POST['services']) ) {
             foreach( $_POST['services'] as $service ) {
-                $services[] = sanitize_text_field( $service );
+                if ( empty( $service['name'] ) ) {
+                    continue; // Skip if no service name is provided.
+                }
+                $service_data = array();
+                $service_data['name'] = sanitize_text_field( $service['name'] );
+                // Allow unsanitized HTML for the service script for frontend output
+                $service_data['script'] = isset($service['script']) ? $service['script'] : '';
+                $service_data['position'] = isset($service['position']) ? sanitize_text_field( $service['position'] ) : 'body_bottom';
+                $services[] = $service_data;
             }
         }
-        $options['services']           = $services;
-        $options['script_head']        = isset($_POST['script_head']) ? $_POST['script_head'] : '';         // Allow HTML
-        $options['script_body_top']    = isset($_POST['script_body_top']) ? $_POST['script_body_top'] : '';       // Allow HTML
-        $options['script_body_bottom'] = isset($_POST['script_body_bottom']) ? $_POST['script_body_bottom'] : '';    // Allow HTML
-        $options['custom_css']         = isset($_POST['custom_css']) ? $_POST['custom_css'] : '';            // Allow full CSS
+        $options['services'] = $services;
+        
+        // Custom CSS remains as before.
+        $options['custom_css'] = isset($_POST['custom_css']) ? $_POST['custom_css'] : '';
         
         update_option( SNN_OPTIONS, $options );
         echo '<div class="updated"><p>Settings saved.</p></div>';
@@ -79,10 +88,18 @@ function snn_options_page() {
             'accept_button'        => 'Accept',
             'deny_button'          => 'Deny',
             'preferences_button'   => 'Preferences',
-            'services'             => array('Google Analytics', 'Facebook Pixel'),
-            'script_head'          => '',
-            'script_body_top'      => '',
-            'script_body_bottom'   => '',
+            'services'             => array(
+                array(
+                    'name'     => 'Google Analytics',
+                    'script'   => '',
+                    'position' => 'head'
+                ),
+                array(
+                    'name'     => 'Facebook Pixel',
+                    'script'   => '',
+                    'position' => 'head'
+                )
+            ),
             'custom_css'           => '',
             'banner_position'      => 'left',
             'banner_bg_color'      => '#333333',
@@ -100,7 +117,7 @@ function snn_options_page() {
             .snn-textarea { width: 500px; }
             .snn-input { width: 300px; }
             .snn-color-picker { }
-            .snn-services-repeater .snn-service-item { margin-bottom: 5px; }
+            .snn-services-repeater .snn-service-item { margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; max-width:600px }
             .snn-custom-css-textarea { width: 500px; }
             /* Tabs styling */
             .snn-tabs { margin-bottom: 20px; }
@@ -108,6 +125,10 @@ function snn_options_page() {
             .snn-tab.active { background: #fff; font-weight: bold; }
             .snn-tab-content { border: 1px solid #ccc; padding: 15px; display: none; }
             .snn-tab-content.active { display: block; }
+            .snn-service-item label { display: block; margin-bottom: 5px; }
+            .snn-service-item input[type="text"],
+            .snn-service-item textarea { width: 100%; }
+            .snn-service-item .snn-radio-group label { margin-right: 10px; }
         </style>
         <!-- Tabs Navigation -->
         <div class="snn-tabs">
@@ -183,7 +204,6 @@ function snn_options_page() {
             <!-- Scripts & Services Tab Content -->
             <div id="scripts" class="snn-tab-content">
                 <table class="form-table">
-                    <!-- New: Consent Mode checkbox (first item) -->
                     <tr valign="top">
                         <th scope="row">Enable Google Consent Mode v2</th>
                         <td>
@@ -197,18 +217,43 @@ function snn_options_page() {
                             <div id="services-repeater" class="snn-services-repeater">
                                 <?php 
                                 if ( ! empty($options['services']) && is_array($options['services']) ) {
+                                    $index = 0;
                                     foreach ( $options['services'] as $service ) {
                                         ?>
                                         <div class="snn-service-item">
-                                            <input type="text" name="services[]" value="<?php echo esc_attr( $service ); ?>" class="snn-input snn-service-input">
+                                            <label>Service Name:
+                                                <input type="text" name="services[<?php echo $index; ?>][name]" value="<?php echo esc_attr( $service['name'] ?? '' ); ?>" class="snn-input snn-service-name">
+                                            </label>
+                                            <label>Service Script Code (HTML allowed):
+                                                <textarea name="services[<?php echo $index; ?>][script]" rows="4" class="snn-textarea snn-service-script-code"><?php echo esc_textarea( $service['script'] ?? '' ); ?></textarea>
+                                            </label>
+                                            <label>Script Position:</label>
+                                            <div class="snn-radio-group">
+                                                <label><input type="radio" name="services[<?php echo $index; ?>][position]" value="head" <?php checked(($service['position'] ?? ''), 'head'); ?>> Head</label>
+                                                <label><input type="radio" name="services[<?php echo $index; ?>][position]" value="body_top" <?php checked(($service['position'] ?? ''), 'body_top'); ?>> Body Top</label>
+                                                <label><input type="radio" name="services[<?php echo $index; ?>][position]" value="body_bottom" <?php checked(($service['position'] ?? ''), 'body_bottom'); ?>> Body Bottom</label>
+                                            </div>
                                             <button class="remove-service snn-remove-service button">Remove</button>
                                         </div>
                                         <?php
+                                        $index++;
                                     }
                                 } else {
+                                    // Output one empty service item if none exist.
                                     ?>
                                     <div class="snn-service-item">
-                                        <input type="text" name="services[]" value="" class="snn-input snn-service-input">
+                                        <label>Service Name:
+                                            <input type="text" name="services[][name]" value="" class="snn-input snn-service-name">
+                                        </label>
+                                        <label>Service Script Code (HTML allowed):
+                                            <textarea name="services[][script]" rows="4" class="snn-textarea snn-service-script-code"></textarea>
+                                        </label>
+                                        <label>Script Position:</label>
+                                        <div class="snn-radio-group">
+                                            <label><input type="radio" name="services[][position]" value="head" checked> Head</label>
+                                            <label><input type="radio" name="services[][position]" value="body_top"> Body Top</label>
+                                            <label><input type="radio" name="services[][position]" value="body_bottom"> Body Bottom</label>
+                                        </div>
                                         <button class="remove-service snn-remove-service button">Remove</button>
                                     </div>
                                     <?php
@@ -221,8 +266,22 @@ function snn_options_page() {
                                 $(document).ready(function(){
                                     $('#add-service').click(function(e){
                                         e.preventDefault();
-                                        var newField = '<div class="snn-service-item"><input type="text" name="services[]" value="" class="snn-input snn-service-input"> <button class="remove-service snn-remove-service button">Remove</button></div>';
-                                        $('#services-repeater').append(newField);
+                                        var newService = '<div class="snn-service-item">' +
+                                            '<label>Service Name:' +
+                                                '<input type="text" name="services[][name]" value="" class="snn-input snn-service-name">' +
+                                            '</label>' +
+                                            '<label>Service Script Code (HTML allowed):' +
+                                                '<textarea name="services[][script]" rows="4" class="snn-textarea snn-service-script-code"></textarea>' +
+                                            '</label>' +
+                                            '<label>Script Position:</label>' +
+                                            '<div class="snn-radio-group">' +
+                                                '<label><input type="radio" name="services[][position]" value="head" checked> Head</label> ' +
+                                                '<label><input type="radio" name="services[][position]" value="body_top"> Body Top</label> ' +
+                                                '<label><input type="radio" name="services[][position]" value="body_bottom"> Body Bottom</label>' +
+                                            '</div>' +
+                                            ' <button class="remove-service snn-remove-service button">Remove</button>' +
+                                            '</div>';
+                                        $('#services-repeater').append(newService);
                                     });
                                     $('#services-repeater').on('click', '.remove-service', function(e){
                                         e.preventDefault();
@@ -231,24 +290,6 @@ function snn_options_page() {
                                 });
                             })(jQuery);
                             </script>
-                        </td>
-                    </tr>
-                    <tr valign="top">
-                        <th scope="row">Script in Head (last item)</th>
-                        <td>
-                            <textarea name="script_head" rows="5" class="snn-textarea snn-script-textarea"><?php echo esc_textarea( $options['script_head'] ?? '' ); ?></textarea>
-                        </td>
-                    </tr>
-                    <tr valign="top">
-                        <th scope="row">Script in Body (top)</th>
-                        <td>
-                            <textarea name="script_body_top" rows="5" class="snn-textarea snn-script-textarea"><?php echo esc_textarea( $options['script_body_top'] ?? '' ); ?></textarea>
-                        </td>
-                    </tr>
-                    <tr valign="top">
-                        <th scope="row">Script in Body (bottom)</th>
-                        <td>
-                            <textarea name="script_body_bottom" rows="5" class="snn-textarea snn-script-textarea"><?php echo esc_textarea( $options['script_body_bottom'] ?? '' ); ?></textarea>
                         </td>
                     </tr>
                     <tr valign="top">
@@ -309,11 +350,22 @@ function snn_output_cookie_banner() {
             'accept_button'      => 'Accept',
             'deny_button'        => 'Deny',
             'preferences_button' => 'Preferences',
-            'services'           => array('Google Analytics', 'Facebook Pixel'),
+            'services'           => array(
+                array(
+                    'name'     => 'Google Analytics',
+                    'script'   => '',
+                    'position' => 'head'
+                ),
+                array(
+                    'name'     => 'Facebook Pixel',
+                    'script'   => '',
+                    'position' => 'head'
+                )
+            ),
             'banner_position'    => 'left',
             'banner_bg_color'    => '#333333',
             'banner_text_color'  => '#ffffff',
-            'button_bg_color'    => '#000000',
+            'button_bg_color'    => '#555555',
             'button_text_color'  => '#ffffff'
         );
     }
@@ -332,7 +384,7 @@ function snn_output_cookie_banner() {
        color: <?php echo esc_attr($options['banner_text_color'] ?? '#ffffff'); ?>;
        box-shadow:0px 0px 10px #00000055;
        border-radius:10px;
-       margin:10px
+       margin:10px;
     }
     .snn-cookie-banner.left { left: 0; }
     .snn-cookie-banner.middle { left: 50%; transform: translateX(-50%); }
@@ -355,9 +407,8 @@ function snn_output_cookie_banner() {
         cursor: pointer;
         margin-top:10px;
         border-radius:5px;
-        
-    width: 100%;
-    text-align: center;
+        width: 100%;
+        text-align: center;
     }
     .snn-banner-buttons .snn-button:last-child {
        margin-right: 0;
@@ -391,10 +442,10 @@ function snn_output_cookie_banner() {
     <div id="snn-cookie-banner" class="snn-cookie-banner <?php echo esc_attr($position); ?>">
         <div class="snn-preferences-content">
             <h2 class="snn-preferences-title">Cookie Preferences</h2>
-            <?php if ( isset($options['services']) && is_array($options['services']) ) { ?>
+            <?php if ( ! empty($options['services']) && is_array($options['services']) ) { ?>
                 <ul class="snn-services-list">
                 <?php foreach ( $options['services'] as $service ) { ?>
-                    <li class="snn-service-item"><?php echo esc_html( $service ); ?></li>
+                    <li class="snn-service-item"><?php echo esc_html( $service['name'] ?? '' ); ?></li>
                 <?php } ?>
                 </ul>
             <?php } ?>
@@ -411,65 +462,33 @@ function snn_output_cookie_banner() {
 add_action('wp_footer', 'snn_output_cookie_banner');
 
 /**
- * 2) Always output the scripts as Base64-encoded data in hidden divs
+ * 2) Output service scripts as Base64-encoded data in hidden divs.
+ *    This replaces the previous static script areas.
  */
-
-// a) Script in <head> (encoded)
-function snn_store_script_head() {
+function snn_output_service_scripts() {
     $options = get_option( SNN_OPTIONS );
-    if ( !empty($options['script_head']) ) {
-        ?>
-        <div 
-            id="snn-script-head" 
-            data-script="<?php echo esc_attr( base64_encode($options['script_head']) ); ?>" 
-            data-position="head" 
-            style="display: none;">
-        </div>
-        <?php
+    if ( ! empty($options['services']) && is_array($options['services']) ) {
+        foreach ( $options['services'] as $index => $service ) {
+            if ( ! empty( $service['script'] ) ) {
+                ?>
+                <div 
+                    id="snn-service-script-<?php echo esc_attr($index); ?>" 
+                    class="snn-service-script" 
+                    data-script="<?php echo esc_attr( base64_encode($service['script']) ); ?>" 
+                    data-position="<?php echo esc_attr( $service['position'] ?? 'body_bottom' ); ?>" 
+                    style="display: none;">
+                </div>
+                <?php
+            }
+        }
     }
 }
-add_action('wp_head', 'snn_store_script_head', 9999);
-
-// b) Script in body (top)
-function snn_store_script_body_top() {
-    $options = get_option( SNN_OPTIONS );
-    if ( !empty($options['script_body_top']) ) {
-        ?>
-        <div 
-            id="snn-script-body-top" 
-            data-script="<?php echo esc_attr( base64_encode($options['script_body_top']) ); ?>" 
-            data-position="body_top" 
-            style="display: none;">
-        </div>
-        <?php
-    }
-}
-if ( function_exists('wp_body_open') ) {
-    add_action('wp_body_open', 'snn_store_script_body_top');
-} else {
-    add_action('wp_head', 'snn_store_script_body_top', 0);
-}
-
-// c) Script in body (bottom)
-function snn_store_script_body_bottom() {
-    $options = get_option( SNN_OPTIONS );
-    if ( !empty($options['script_body_bottom']) ) {
-        ?>
-        <div 
-            id="snn-script-body-bottom" 
-            data-script="<?php echo esc_attr( base64_encode($options['script_body_bottom']) ); ?>" 
-            data-position="body_bottom" 
-            style="display: none;">
-        </div>
-        <?php
-    }
-}
-add_action('wp_footer', 'snn_store_script_body_bottom', 99);
+add_action('wp_footer', 'snn_output_service_scripts', 99);
 
 /**
  * 3) Add JavaScript to:
  *    - Set/Check cookies
- *    - Dynamically inject scripts from the hidden divs (if consent is given)
+ *    - Dynamically inject service scripts from the hidden divs (if consent is given)
  *    - Update Google Consent Mode v2 using gtag if enabled
  */
 function snn_output_banner_js() {
@@ -542,7 +561,7 @@ function snn_output_banner_js() {
         }
 
         function injectAllConsentScripts() {
-            var hiddenDivs = document.querySelectorAll('[id^="snn-script-"][data-script]');
+            var hiddenDivs = document.querySelectorAll('.snn-service-script[data-script]');
             hiddenDivs.forEach(function(div){
                 var encoded = div.getAttribute('data-script');
                 var position = div.getAttribute('data-position') || 'body_bottom';
